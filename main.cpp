@@ -1,58 +1,13 @@
+#include "methods.hpp"
 #include "myrand.hpp"
 #include <algorithm>
+#include <clocale>
 #include <fstream>
-#include <iostream>
 #include <map>
 #include <ostream>
-#include <random>
 #include <sstream>
-#include <stdexcept>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
-#include <vector>
 using namespace std;
-const bool DEBUG = false;
-template <typename C, typename T> vector<T> shuffle(const C &container) {
-  vector<T> r(container.begin(), container.end());
-  random_device rd;
-  mt19937 generator(rd());
-  shuffle(r.begin(), r.end(), generator);
-  return r;
-}
-template <typename T> vector<T> shuffle(const unordered_set<T> &container) {
-  return shuffle<unordered_set<T>, T>(container);
-}
-unordered_set<string> intersect(const unordered_set<string> &a,
-                                const unordered_set<string> &b) {
-  unordered_set<string> r;
-  for (const auto &i : a)
-    if (b.count(i))
-      r.insert(i);
-  return r;
-}
-class Tick {
-  static uint64_t _tick;
-
-public:
-  static uint64_t get() { return _tick; }
-  static void tick() { _tick++; }
-};
-bool is_natural(const std::string &s) {
-  try {
-    int value = stoi(s);
-    return true;
-  } catch (invalid_argument ia) {
-    if (DEBUG)
-      std::cerr << "\"" << s << "\" is not a number.\n";
-  } catch (out_of_range oor) {
-    if (DEBUG)
-      std::cerr << "\"" << s << "\" is too large.\n";
-  }
-  return false;
-}
-uint64_t Tick::_tick = 0;
 
 bool compare(const int &a, const string &op, const int &b) {
   if (op == "=")
@@ -70,33 +25,6 @@ bool compare(const int &a, const string &op, const int &b) {
   return false;
 }
 
-vector<string> split(string s, const string &key, const bool trim = true) {
-  vector<string> r;
-  size_t pos;
-  while ((pos = s.find(key)) != s.npos) {
-    r.push_back(s.substr(0, pos));
-    s = s.substr(pos + key.length());
-  }
-  auto trim_proc = [](string &s) -> void {
-    while (s.length()) {
-      if (s[0] == ' ')
-        s = s.substr(1);
-      else if (s.back() == ' ')
-        s = s.substr(0, s.length() - 1);
-      else
-        break;
-    }
-  };
-  r.push_back(s);
-  for (uint64_t i = 0; i < r.size(); i++)
-    trim_proc(r[i]);
-  for (uint64_t i = r.size() - 1; i < r.size(); i--) {
-    if (r[i].length() == 0)
-      r.erase(r.begin() + i);
-  }
-  return r;
-}
-
 struct Human;
 struct Vacancy;
 struct Job;
@@ -104,9 +32,9 @@ struct Location;
 
 class Action {
   string name;
-  uint64_t price, time_to_execute, bonus_money; // цена в рублях, время в часах
-  unordered_set<string> tags;
-  unordered_map<string, uint64_t> rules, items, removable_items;
+  int64_t price, time_to_execute, bonus_money; // цена в рублях, время в часах
+  set<string> tags;
+  map<string, int64_t> rules, items, removable_items;
 
 public:
   const auto &get_name() const { return name; }
@@ -118,12 +46,11 @@ public:
   const auto &get_items() const { return items; }
   const auto &get_removable_items() const { return removable_items; }
   bool operator<(const Action &a) const { return name < a.name; }
-  Action(const string &name, const uint64_t &price,
-         const uint64_t &time_to_execute, const unordered_set<string> &tags,
-         const unordered_map<string, uint64_t> &rules,
-         const unordered_map<string, uint64_t> &items,
-         const unordered_map<string, uint64_t> &removable_items,
-         const uint64_t bonus_money) {
+  Action(const string &name, const int64_t &price,
+         const int64_t &time_to_execute, const set<string> &tags,
+         const map<string, int64_t> &rules, const map<string, int64_t> &items,
+         const map<string, int64_t> &removable_items,
+         const int64_t bonus_money) {
     this->name = name;
     this->price = price;
     this->time_to_execute = time_to_execute;
@@ -138,8 +65,8 @@ public:
 };
 class LocalTarget {
   string name;
-  unordered_set<string> tags;
-  unordered_set<Action *> actions_possible, actions_executed;
+  set<string> tags;
+  set<Action *> actions_possible, actions_executed;
 
 public:
   void mark_as_executed(Action *action) {
@@ -147,7 +74,7 @@ public:
     actions_executed.insert(action);
   }
   bool is_executed_full() const {
-    unordered_set<string> buf = tags;
+    set<string> buf = tags;
     for (const auto &i : actions_executed)
       for (const auto &j : i->get_tags())
         buf.erase(j);
@@ -157,7 +84,7 @@ public:
   const auto &get_tags() const { return tags; }
   const auto &get_actions_possible() const { return actions_possible; }
   const auto &get_actions_executed() const { return actions_executed; }
-  LocalTarget(const string &name, const unordered_set<string> &tags,
+  LocalTarget(const string &name, const set<string> &tags,
               const vector<Action *> &all_possible_actions) {
     this->name = name;
     this->tags = tags;
@@ -169,7 +96,7 @@ public:
   bool operator<(const LocalTarget &lt) const { return name < lt.name; }
   Action *choose_action(Human *person) const {
     map<uint64_t, vector<Action *>> rating;
-    unordered_set<string> left_tags = tags;
+    set<string> left_tags = tags;
     for (const auto &i : actions_executed)
       for (const auto &j : i->get_tags())
         left_tags.erase(j);
@@ -190,9 +117,9 @@ public:
 };
 class GlobalTarget {
   string name;
-  unordered_set<string> tags;
+  set<string> tags;
   double power;
-  unordered_set<LocalTarget *> targets_possible, targets_executed;
+  set<LocalTarget *> targets_possible, targets_executed;
 
 public:
   void mark_as_executed(LocalTarget *ltarget) {
@@ -200,7 +127,7 @@ public:
     targets_executed.insert(ltarget);
   }
   bool is_executed_full() const {
-    unordered_set<string> buf = tags;
+    set<string> buf = tags;
     for (const auto &i : targets_executed)
       for (const auto &j : i->get_tags())
         buf.erase(j);
@@ -232,8 +159,7 @@ public:
   const auto &get_targets_executed() const { return targets_executed; }
   bool executable(const Human *person) const;
   bool operator<(const GlobalTarget &gt) const { return name < gt.name; }
-  GlobalTarget(const string &name, const unordered_set<string> &tags,
-               const double &power,
+  GlobalTarget(const string &name, const set<string> &tags, const double &power,
                const vector<LocalTarget *> &all_possible_targets) {
     this->name = name;
     this->tags = tags;
@@ -245,7 +171,7 @@ public:
   }
   LocalTarget *choose_target(Human *person) const {
     map<uint64_t, vector<LocalTarget *>> rating;
-    unordered_set<string> left_tags = tags;
+    set<string> left_tags = tags;
     for (const auto &i : targets_executed)
       for (const auto &j : i->get_tags())
         left_tags.erase(j);
@@ -323,11 +249,11 @@ const vector<Action *> ACTIONS = [](const string filename) -> vector<Action *> {
   for (const auto &words : load_sequences_from_file(filename)) {
     if (words.size() > 3) {
       string name = words[0];
-      uint64_t price = stoi(words[1]);
-      uint64_t tte = stoi(words[2]);
-      uint64_t bonus = 0;
-      unordered_set<string> tags;
-      unordered_map<string, uint64_t> rules, items, removable;
+      int64_t price = stoi(words[1]);
+      int64_t tte = stoi(words[2]);
+      int64_t bonus = 0;
+      set<string> tags;
+      map<string, int64_t> rules, items, removable;
       for (uint64_t i = 3; i < words.size(); i++) {
         if (words[i].find("$") != words[i].npos) {
           if (words[i].length() > 1 && words[i][1] == '-') {
@@ -399,8 +325,8 @@ const vector<GlobalTarget *> GLOBAL_TARGETS =
   return r;
 }("global.ini");
 
-const unordered_map<string, GlobalTarget *> GLOBAL_NAME = []() {
-  unordered_map<string, GlobalTarget *> r;
+const map<string, GlobalTarget *> GLOBAL_NAME = []() {
+  map<string, GlobalTarget *> r;
   for (const auto &i : GLOBAL_TARGETS) {
     if (r.count(i->get_name()))
       throw(invalid_argument("Global target name duplication!"));
@@ -408,8 +334,8 @@ const unordered_map<string, GlobalTarget *> GLOBAL_NAME = []() {
   }
   return r;
 }();
-const unordered_map<string, LocalTarget *> LOCAL_NAME = []() {
-  unordered_map<string, LocalTarget *> r;
+const map<string, LocalTarget *> LOCAL_NAME = []() {
+  map<string, LocalTarget *> r;
   for (const auto &i : LOCAL_TARGETS) {
     if (r.count(i->get_name()))
       throw(invalid_argument("Local target name duplication!"));
@@ -417,8 +343,8 @@ const unordered_map<string, LocalTarget *> LOCAL_NAME = []() {
   }
   return r;
 }();
-const unordered_map<string, Action *> ACTION_NAME = []() {
-  unordered_map<string, Action *> r;
+const map<string, Action *> ACTION_NAME = []() {
+  map<string, Action *> r;
   for (const auto &i : ACTIONS) {
     if (r.count(i->get_name()))
       throw(invalid_argument("Action name duplication!"));
@@ -440,9 +366,9 @@ struct Path {
 };
 struct Splash {
   string name;
-  unordered_set<string> tags;
+  set<string> tags;
   uint64_t appear_time, life_length;
-  Splash(const string &name, const unordered_set<string> &tags,
+  Splash(const string &name, const set<string> &tags,
          const uint64_t &life_length) {
     this->name = name;
     this->tags = tags;
@@ -464,15 +390,16 @@ struct Human {
   uint64_t job_time = 720;
   Location *home_location = nullptr;
   // с кем и как давно связан
-  unordered_map<Human *, double> parents, family, children, friends;
+  map<Human *, double> parents, family, children, friends;
   vector<Splash> splashes;
-  unordered_set<GlobalTarget *> global_targets, completed_global_targets;
-  unordered_map<string, int64_t> items;
-  Human(const unordered_set<Human *> &parent, Location *home_location) {
+  set<GlobalTarget *> global_targets, completed_global_targets;
+  map<string, int64_t> items;
+  Human(const set<Human *> &parent, Location *home_location) {
+    HumanStorage::append(this);
     for (const auto &i : parent)
       this->parents[i] = 0.;
     this->home_location = home_location;
-    const int ngt = min(GLOBAL_TARGETS.size(), 2 + my::Random::next() % 2);
+    const auto ngt = min(GLOBAL_TARGETS.size(), 2 + my::Random::next() % 2);
     while (global_targets.size() < ngt) {
       auto ptr = GLOBAL_TARGETS.begin();
       uint64_t offset = my::Random::next() % GLOBAL_TARGETS.size();
@@ -486,8 +413,8 @@ struct Human {
           isnew = false;
       if (isnew) {
         global_targets.insert(new GlobalTarget(**ptr));
-        cerr << "[DEBUG] unit " << this;
-        cerr << " got GT " << (*ptr)->get_name() << ":";
+        cerr << "[DEBUG] человек № " << HumanStorage::get(this);
+        cerr << " получил Глобальную цель: " << (*ptr)->get_name() << ":";
         for (const auto &i : (*ptr)->get_tags())
           cerr << " " << i;
         cerr << endl;
@@ -498,24 +425,26 @@ struct Human {
 };
 struct Vacancy {
   Job *parent;
-  unordered_set<string> required_tags; // education, skills, etc
-  int payment;                         // monthly payment
+  set<string> required_tags; // education, skills, etc
+  int payment;               // monthly payment
 };
 struct Job {
-  unordered_map<Vacancy *, uint64_t> vacant_places;
+  map<Vacancy *, uint64_t> vacant_places;
   Location *home_location = nullptr;
 };
 struct Location {
-  unordered_set<Job *> jobs;
-  unordered_set<Human *> humans;
-  unordered_set<Path *> paths;
+  set<Job *> jobs;
+  set<Human *> humans;
+  set<Path *> paths;
 };
 void Human::iterate_hour() {
   if (money <= 0) {
     // агент замечает, что денег не хватает, появляется мысль о поиске новой
     // работы
     splashes.push_back(
-        Splash("need_money", {"деньги", "благополучие", "карьера"}, 24));
+        Splash("нужны_деньги", {"деньги", "благополучие", "карьера"}, 24));
+    cerr << "Час " << Tick::get() << ": человек № " << HumanStorage::get(this)
+         << ", всплеск: нужны_деньги\n";
   }
   for (auto &i : parents)
     i.second += 1. / (24 * 365);
@@ -547,7 +476,7 @@ void Human::iterate_hour() {
       // родственникам
       if (money > 0) {
         // долги умерший оставляет государству
-        unordered_set<Human *> candidates;
+        set<Human *> candidates;
         for (const auto &i : family)
           if (!i.first->dead)
             candidates.insert(i.first);
@@ -572,8 +501,15 @@ void Human::iterate_hour() {
   age += 1. / (24 * 365); // стареем
   if (Tick::get() % 24 == 0) {
     money -= 500; // дневные траты
-    if (job != nullptr && Tick::get() % (30 * 24) == 0)
+    cerr << "Час " << Tick::get() << ": человек № " << HumanStorage::get(this)
+         << " потратил 500р на базовые суточные расходы. Остаток: " << money
+         << endl;
+    if (job != nullptr && Tick::get() % (30 * 24) == 0) {
       money += job->payment;
+      cerr << "Час " << Tick::get() << ": человек № " << HumanStorage::get(this)
+           << " получил зарплату. Баланс: " << money
+           << endl;
+    }
   }
   // если ушли в минус по бюджету, то пробуем перераспределить деньги в
   // семье, от детей, от родителей (порядок обсуждаем)
@@ -639,21 +575,22 @@ void Human::iterate_hour() {
         if (selected_action != nullptr) {
           // if (DEBUG)
           if (true) {
-            cerr << "Unit " << this << " chosen a \""
+            cerr << "Человек № " << HumanStorage::get(this)
+                 << " выбрал приоритетной глобальную цель \""
                  << selected_global_target->get_name();
-            cerr << "\" global target, \"" << selected_local_target->get_name()
-                 << "\", ";
-            cerr << "\"" << selected_action->get_name() << "\" action.\n";
+            cerr << "\", локальную цель \"" << selected_local_target->get_name()
+                 << "\", действие ";
+            cerr << "\"" << selected_action->get_name() << "\".\n";
           }
           selected_action->apply(this);
           selected_local_target->mark_as_executed(selected_action);
           if (selected_local_target->is_executed_full()) {
-            cerr << "Local target\" " << selected_local_target->get_name()
-                 << "\" executed.\n";
+            cerr << "Локальная цель \"" << selected_local_target->get_name()
+                 << "\" достигнута.\n";
             selected_global_target->mark_as_executed(selected_local_target);
             if (selected_global_target->is_executed_full()) {
-              cerr << "Global target\" " << selected_global_target->get_name()
-                   << "\" executed.\n";
+              cerr << "Глобальная цель \"" << selected_global_target->get_name()
+                   << "\" достигнута.\n";
               completed_global_targets.insert(selected_global_target);
               global_targets.erase(selected_global_target);
             }
@@ -803,21 +740,22 @@ bool Action::executable(const Human *person) const {
 }
 
 int main() {
-  cerr << "GT:\n";
+  setlocale(LC_ALL, "russian");
+  cerr << "Загруженные глобальные цели:\n";
   for (const auto &i : GLOBAL_TARGETS) {
     cerr << i->get_name() << ":";
     for (const auto &j : i->get_tags())
       cerr << " " << j;
     cerr << endl;
   }
-  cerr << "LT:\n";
+  cerr << "Загруженные локальные цели:\n";
   for (const auto &i : LOCAL_TARGETS) {
-    cerr << i->get_name() << " :";
+    cerr << i->get_name() << ":";
     for (const auto &j : i->get_tags())
       cerr << " " << j;
     cerr << endl;
   }
-  cerr << "ACT:\n";
+  cerr << "Загруженные действия:\n";
   for (const auto &i : ACTIONS) {
     cerr << i->get_name() << "[";
     cerr << i->get_price() << ", ";
@@ -837,13 +775,13 @@ int main() {
   Vacancy *vacancy = new Vacancy();
   vacancy->parent = company;
   vacancy->payment = 50000; // Зарплата 50 000 рублей в месяц
-  company->vacant_places[vacancy] = 100;
+  company->vacant_places[vacancy] = 10;
   city.jobs.insert(company);
 
-  // Создаем 5 жителей
+  // Создаем 10 жителей
   vector<Human *> people;
-  for (int i = 0; i < 100; i++) {
-    Human *h = new Human(unordered_set<Human *>(), &city);
+  for (int i = 0; i < 10; i++) {
+    Human *h = new Human(set<Human *>(), &city);
     h->money = 10000; // Стартовый капитал
     people.push_back(h);
     city.humans.insert(h);
@@ -890,16 +828,6 @@ int main() {
     iterate_timer += t1 - t0;
 
     Tick::tick(); // Увеличиваем глобальный счётчик времени
-  }
-
-  for (const auto &i : people) {
-    cerr << i << ": " << i->splashes.size() << endl;
-    for (const auto &j : i->splashes) {
-      cerr << "  " << j.appear_time << ", " << j.name << ", " << j.life_length
-           << endl;
-      for (const auto &k : j.tags)
-        cerr << "    " << k << endl;
-    }
   }
 
   cerr << "iterate: " << iterate_timer << endl;
