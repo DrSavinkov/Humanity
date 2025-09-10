@@ -789,7 +789,7 @@ int main() {
 
   const uint64_t hours_per_month = 30 * 24;        // 1 месяц в часах
   const uint64_t hours_per_year = 365 * 24;        // 1 год в часах
-  const uint64_t total_hours = 1 * hours_per_year; // 1 год в часах
+  const uint64_t total_hours = 1 * hours_per_year; // всего моделируем часов
 
   double iterate_timer = 0;
   // Цикл симуляции
