@@ -1,6 +1,7 @@
 #ifndef MY_METHODS
 #define MY_METHODS
 #include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <random>
@@ -8,6 +9,11 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+using namespace std;
+ofstream fcerr("logs_2.txt");
+ofstream fcout("logs_1.txt");
+#define cerr fcerr
+#define cout fcout
 const bool DEBUG = false;
 class Tick {
   static uint64_t _tick;
@@ -17,7 +23,7 @@ public:
   static void tick() { _tick++; }
 };
 class HumanStorage {
-  static std::map<void *, size_t> links;
+  static map<void *, size_t> links;
 
 public:
   static void append(void *link) {
@@ -32,30 +38,29 @@ public:
     return f->second;
   }
 };
-std::map<void *, size_t> HumanStorage::links = {};
-bool is_natural(const std::string &s) {
+map<void *, size_t> HumanStorage::links = {};
+bool is_natural(const string &s) {
   try {
     int value = stoi(s);
     return value - value == 0;
-  } catch (std::invalid_argument &ia) {
+  } catch (invalid_argument &ia) {
     if (DEBUG)
-      std::cerr << "\"" << s << "\" is not a number.\n";
-  } catch (std::out_of_range &oor) {
+      cerr << "\"" << s << "\" is not a number.\n";
+  } catch (out_of_range &oor) {
     if (DEBUG)
-      std::cerr << "\"" << s << "\" is too large.\n";
+      cerr << "\"" << s << "\" is too large.\n";
   }
   return false;
 }
 uint64_t Tick::_tick = 0;
-std::vector<std::string> split(std::string s, const std::string &key,
-                               const bool trim = true) {
-  std::vector<std::string> r;
+vector<string> split(string s, const string &key, const bool trim = true) {
+  vector<string> r;
   size_t pos;
   while ((pos = s.find(key)) != s.npos) {
     r.push_back(s.substr(0, pos));
     s = s.substr(pos + key.length());
   }
-  auto trim_proc = [](std::string &s) -> void {
+  auto trim_proc = [](string &s) -> void {
     while (s.length()) {
       if (s[0] == ' ')
         s = s.substr(1);
@@ -74,19 +79,18 @@ std::vector<std::string> split(std::string s, const std::string &key,
   }
   return r;
 }
-template <typename C, typename T> std::vector<T> shuffle(const C &container) {
-  std::vector<T> r(container.begin(), container.end());
-  std::random_device rd;
-  std::mt19937 generator(rd());
+template <typename C, typename T> vector<T> shuffle(const C &container) {
+  vector<T> r(container.begin(), container.end());
+  random_device rd;
+  mt19937 generator(rd());
   shuffle(r.begin(), r.end(), generator);
   return r;
 }
-template <typename T> std::vector<T> shuffle(const std::set<T> &container) {
-  return shuffle<std::set<T>, T>(container);
+template <typename T> vector<T> shuffle(const set<T> &container) {
+  return shuffle<set<T>, T>(container);
 }
-std::set<std::string> intersect(const std::set<std::string> &a,
-                                const std::set<std::string> &b) {
-  std::set<std::string> r;
+set<string> intersect(const set<string> &a, const set<string> &b) {
+  set<string> r;
   for (const auto &i : a)
     if (b.count(i))
       r.insert(i);

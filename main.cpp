@@ -413,8 +413,8 @@ struct Human {
           isnew = false;
       if (isnew) {
         global_targets.insert(new GlobalTarget(**ptr));
-        cerr << "[DEBUG] человек № " << HumanStorage::get(this);
-        cerr << " получил Глобальную цель: " << (*ptr)->get_name() << ":";
+        cerr << "[DEBUG] human # " << HumanStorage::get(this);
+        cerr << " got Global target: " << (*ptr)->get_name() << ":";
         for (const auto &i : (*ptr)->get_tags())
           cerr << " " << i;
         cerr << endl;
@@ -442,9 +442,9 @@ void Human::iterate_hour() {
     // агент замечает, что денег не хватает, появляется мысль о поиске новой
     // работы
     splashes.push_back(
-        Splash("нужны_деньги", {"деньги", "благополучие", "карьера"}, 24));
-    cerr << "Час " << Tick::get() << ": человек № " << HumanStorage::get(this)
-         << ", всплеск: нужны_деньги\n";
+        Splash("need_money", {"money", "weall-being", "career"}, 24));
+    cerr << "Hour " << Tick::get() << ": human # " << HumanStorage::get(this)
+         << ", splash: need_money\n";
   }
   for (auto &i : parents)
     i.second += 1. / (24 * 365);
@@ -501,14 +501,13 @@ void Human::iterate_hour() {
   age += 1. / (24 * 365); // стареем
   if (Tick::get() % 24 == 0) {
     money -= 500; // дневные траты
-    cerr << "Час " << Tick::get() << ": человек № " << HumanStorage::get(this)
-         << " потратил 500р на базовые суточные расходы. Остаток: " << money
+    cerr << "Hour " << Tick::get() << ": human # " << HumanStorage::get(this)
+         << " spent 500 rub on base daily expenses. Money left: " << money
          << endl;
     if (job != nullptr && Tick::get() % (30 * 24) == 0) {
       money += job->payment;
-      cerr << "Час " << Tick::get() << ": человек № " << HumanStorage::get(this)
-           << " получил зарплату. Баланс: " << money
-           << endl;
+      cerr << "Hour " << Tick::get() << ": human # " << HumanStorage::get(this)
+           << " got payment. Money balance: " << money << endl;
     }
   }
   // если ушли в минус по бюджету, то пробуем перераспределить деньги в
@@ -575,22 +574,22 @@ void Human::iterate_hour() {
         if (selected_action != nullptr) {
           // if (DEBUG)
           if (true) {
-            cerr << "Человек № " << HumanStorage::get(this)
-                 << " выбрал приоритетной глобальную цель \""
+            cerr << "Human # " << HumanStorage::get(this)
+                 << " chosen main global target \""
                  << selected_global_target->get_name();
-            cerr << "\", локальную цель \"" << selected_local_target->get_name()
-                 << "\", действие ";
+            cerr << "\", local target \"" << selected_local_target->get_name()
+                 << "\", action ";
             cerr << "\"" << selected_action->get_name() << "\".\n";
           }
           selected_action->apply(this);
           selected_local_target->mark_as_executed(selected_action);
           if (selected_local_target->is_executed_full()) {
-            cerr << "Локальная цель \"" << selected_local_target->get_name()
-                 << "\" достигнута.\n";
+            cerr << "Local target \"" << selected_local_target->get_name()
+                 << "\" reached.\n";
             selected_global_target->mark_as_executed(selected_local_target);
             if (selected_global_target->is_executed_full()) {
-              cerr << "Глобальная цель \"" << selected_global_target->get_name()
-                   << "\" достигнута.\n";
+              cerr << "Global target \"" << selected_global_target->get_name()
+                   << "\" reached.\n";
               completed_global_targets.insert(selected_global_target);
               global_targets.erase(selected_global_target);
             }
@@ -616,7 +615,7 @@ void Action::apply(Human *person) const {
   }
   person->money += bonus_money;
   // частный случай: специальное событие: поиск новой работы
-  if (name == "найти_работу") {
+  if (name == "find_job") {
     vector<Vacancy *> possible_jobs_in_home_location;
     for (const auto &i : person->home_location->jobs) {
       for (const auto &j : i->vacant_places) {
@@ -740,22 +739,21 @@ bool Action::executable(const Human *person) const {
 }
 
 int main() {
-  setlocale(LC_ALL, "russian");
-  cerr << "Загруженные глобальные цели:\n";
+  cerr << "Loaded global targets:\n";
   for (const auto &i : GLOBAL_TARGETS) {
     cerr << i->get_name() << ":";
     for (const auto &j : i->get_tags())
       cerr << " " << j;
     cerr << endl;
   }
-  cerr << "Загруженные локальные цели:\n";
+  cerr << "Loaded local targets:\n";
   for (const auto &i : LOCAL_TARGETS) {
     cerr << i->get_name() << ":";
     for (const auto &j : i->get_tags())
       cerr << " " << j;
     cerr << endl;
   }
-  cerr << "Загруженные действия:\n";
+  cerr << "Loaded actions:\n";
   for (const auto &i : ACTIONS) {
     cerr << i->get_name() << "[";
     cerr << i->get_price() << ", ";
